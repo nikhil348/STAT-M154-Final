@@ -1,0 +1,442 @@
+---
+title: "Report 2"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+setwd("~/Downloads/VIQT_data")
+library(readr)
+data <- read_tsv("VIQT_data.csv")
+key <- read_csv("key.csv", col_names = FALSE)
+key <- as.data.frame(key)
+```
+
+```{r}
+data <- data[,1:45]
+```
+
+```{r}
+sum(is.na(data))
+data[!complete.cases(data), ]
+```
+
+```{r}
+#View(head(data))
+```
+
+```{r}
+library(rlist)
+
+datalist <- list()
+
+for (i in 1:45){
+  
+  col <- data[,i]
+  
+  col <- as.data.frame(col)
+  
+  correct <- key[i, 2]
+  
+  col[,1] <- ifelse (col[,1] == correct, 1, 0)
+  
+  col <- as.data.frame(col)
+  
+  datalist[[i]] <- col
+  
+}
+
+new <- list.cbind(datalist)
+#View(new)
+```
+
+
+
+
+```{r}
+M <- cor(new)
+M <- round(M, 2)
+head(M, 30)
+#View(M)
+```
+
+
+```{r}
+range(M)
+```
+
+
+```{r}
+sum((M == 1))
+```
+
+```{r}
+sum(M==0)
+```
+
+```{r}
+sapply(new, mean)
+```
+
+```{r}
+sapply(new, sd)
+```
+
+```{r}
+x <- sapply(new, mean)
+y <- x > 0.9
+z <- which(y == TRUE)
+```
+
+
+
+```{r}
+new2 <- new[,-c(z)]
+#View(new2)
+```
+
+```{r}
+sapply(new2, mean)
+```
+
+```{r}
+sapply(new2, sd)
+```
+
+```{r}
+N <- cor(new2)
+N <- round(N, 2)
+#View(N)
+```
+
+```{r}
+range(N)
+```
+
+
+```{r}
+sum((N == 1))
+```
+
+```{r}
+sum(N==0)
+```
+
+```{r}
+#View(new2)
+```
+
+```{r}
+library(psych)
+polychor_mx <- polychoric(new2)
+polychor_mx <- polychor_mx[["rho"]]
+#View(polychor_mx)
+```
+
+```{r}
+polychor_mx <- round(polychor_mx, 2)
+```
+
+```{r}
+ev <- eigen(polychor_mx)
+round(ev$values, 3)
+```
+
+```{r}
+#Factor analysis of the data
+one_factor <- fa(r = polychor_mx, nfactors = 1, n.obs = 12173)
+#Getting the factor loadings and model analysis
+summary(one_factor)
+```
+
+```{r}
+one_factor$loadings
+```
+
+```{r}
+library(GPArotation)
+mult_factors <- fa(r = polychor_mx, nfactors = 3, n.obs = 12173, rotate = "bifactor")
+print(mult_factors)
+```
+
+```{r}
+print(mult_factors, digits = 3, cutoff = 0.1, sort = FALSE)
+```
+
+
+```{r}
+mult_factors$loadings
+```
+
+```{r}
+two_factors_obl <- fa(r = polychor_mx, nfactors = 2, n.obs = 12173, rotate = "geominQ")
+two_factors_obl$loadings
+```
+
+```{r}
+corrmx <- two_factors_obl$r.scores
+corrmx <- round(corrmx, 3)
+corrmx
+```
+
+
+
+```{r}
+two_factors_orth <- fa(r = polychor_mx, nfactors = 2, n.obs = 12173, rotate = "varimax")
+two_factors_orth$loadings
+two_factors_orth$r.scores
+```
+
+```{r}
+factor1 <- one_factor$loadings
+str(factor1)
+```
+
+```{r}
+new3 <- new2[,-c(4,9,15,16,17,19,20,23,24,28,32,33, 2)]
+#View(new3)
+```
+
+```{r}
+one_factor$loadings
+```
+
+
+
+
+```{r}
+polychor_mx2 <- polychoric(new3)
+polychor_mx2 <- polychor_mx2[["rho"]]
+one_factor2 <- fa(r = polychor_mx2, nfactors = 1, n.obs = 12173)
+one_factor2$loadings
+```
+
+
+
+
+
+IRT
+
+```{r}
+library(ltm)
+library(mirt)
+```
+
+```{r}
+IRTmodel <- ltm(new3 ~ z1, IRT.param = TRUE)
+summary(IRTmodel)
+```
+
+```{r}
+round(coef(IRTmodel), 3)
+```
+1, 7, 12, 13, 16, 18, 21
+
+```{r}
+plot(IRTmodel, type = "ICC")
+```
+
+```{r}
+plot(IRTmodel, type = "IIC", items = 0)
+```
+
+```{r}
+plot(IRTmodel, type = "ICC", item = 20)
+```
+
+
+```{r}
+IRTmodel2 <- tpm(new3, type="latent.trait", IRT.param = TRUE)
+```
+
+```{r}
+round(coef(IRTmodel2), 2)
+```
+
+```{r}
+anova(IRTmodel, IRTmodel2)
+```
+
+```{r}
+library(irtoys)
+plotting <- est(new3, model = "2PL", engine = "ltm")
+trf(plotting)
+```
+
+```{r}
+library(irtoys)
+x <- trf(plotting)
+plot(x)
+```
+
+```{r}
+#View(cbind(trf(plotting)[["x"]], trf(plotting)[["f"]]))
+```
+
+```{r}
+information(IRTmodel, c(-6, 0))
+```
+
+
+
+```{r}
+new4 <- new3[,-c(1, 7, 12, 13, 16, 18, 21)]
+```
+
+```{r}
+IRTfinal <- ltm(new4 ~ z1, IRT.param = TRUE)
+```
+
+```{r}
+round(coef(IRTfinal), 2)
+```
+
+```{r}
+mean(coef(IRTfinal)[1])
+```
+
+
+```{r}
+plot(IRTfinal, type = "ICC")
+```
+
+```{r}
+plot(IRTfinal, type = "IIC", items = 0)
+```
+
+```{r}
+plotting2 <- est(new4, model = "2PL", engine = "ltm")
+```
+
+```{r}
+y <- trf(plotting2)
+plot(y)
+```
+
+```{r}
+#View(cbind(trf(plotting2)[["x"]], trf(plotting2)[["f"]]))
+```
+
+```{r}
+information(IRTfinal, c(-6, 0))
+```
+
+
+```{r}
+polychor_mx_all <- polychoric(new)
+polychor_mx_all <- polychor_mx_all[["rho"]]
+```
+
+
+```{r}
+one_factor_all <- fa(r = polychor_mx_all, nfactors = 1, rotate = "none",  fm="minres")
+one_factor_all$loadings
+```
+
+```{r}
+mean(one_factor_all$loadings[1:45])
+```
+
+
+```{r}
+polychor_mx_final <- polychoric(new4)
+polychor_mx_final <- polychor_mx_final[["rho"]]
+```
+
+```{r}
+one_factor_final <- fa(r = polychor_mx_final, nfactors = 1, rotate = "none",  fm="minres")
+one_factor_final$loadings
+```
+
+```{r}
+mean(one_factor_all$loadings[1:45])
+mean(one_factor_final$loadings[1:14])
+```
+
+unidimensionality:
+
+```{r}
+evalall <- eigen(polychor_mx_all)
+evalall$values[1] / sum(evalall$values)
+```
+
+```{r}
+ev2 <- eigen(polychor_mx_final)
+ev2$values[1] / sum(ev2$values)
+```
+
+
+```{r}
+alpha_og <- (cov(new))
+diag(alpha_og) <- NA
+#View(alpha_og)
+mean(alpha_og, na.rm = TRUE)
+```
+
+```{r}
+variances_all <- sapply(new, var)
+mean(variances_all)
+```
+
+```{r}
+mean(alpha_og, na.rm = TRUE) / mean(variances_all)
+```
+
+```{r}
+alpha_final <- (cov(new4))
+diag(alpha_final) <- NA
+#View(alpha_final)
+mean(alpha_final, na.rm = TRUE)
+```
+
+```{r}
+variances_final <- sapply(new4, var)
+mean(variances_final)
+```
+
+```{r}
+mean(alpha_final, na.rm = TRUE) / mean(variances_final)
+```
+
+
+```{r}
+cor_all <- cor(new)
+diag(cor_all) <- NA
+#View(cor_all)
+mean(cor_all, na.rm= TRUE)
+```
+
+```{r}
+cor_final <- cor(new4)
+diag(cor_final) <- NA
+#View(cor_all)
+mean(cor_final, na.rm= TRUE)
+```
+
+
+
+```{r}
+IRTmodel_all <- ltm(new ~ z1, IRT.param = TRUE)
+```
+
+```{r}
+coef(IRTmodel_all)
+```
+
+
+```{r}
+coef_all <- coef(IRTmodel_all)
+mean(coef_all[,2])
+```
+
+```{r}
+coef_final <- coef(IRTfinal)
+mean(coef_final[,1])
+mean(coef_final[,2])
+```
